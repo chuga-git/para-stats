@@ -1,4 +1,3 @@
-import json
 import logging
 from typing import List, Dict
 from .adapter import SessionAdapter
@@ -11,6 +10,7 @@ class APIFetch:
         self._adapter = SessionAdapter(logger=logging)
 
     def __fetch_roundlist_paged(self, offset_end: int, offset_start: int = 0) -> List:
+        """Generator for paginated retrieval of roundlist endpoint. Will return overlapping data."""
         def fetch_single_page(offset: int) -> List:
             return self._adapter.get(f"/roundlist?offset={offset}")
 
@@ -33,35 +33,7 @@ class APIFetch:
         """Fetch blackbox stats for a single round. `raw_data` is processed on hand."""
         result = self._adapter.get(f"/blackbox/{round_id}")
 
-        # for entry in result:
-        #     entry["data"] = json.loads(entry["raw_data"])["data"]
-        #     entry.pop("raw_data")
-
-        #     if entry["key_name"] == "RND Production List":
-        #         entry["data"] = entry["data"]["/list"]
-
-        #     if entry["key_name"] == "high_research_level":
-        #         # temp check to see if there's ever going to be more than one element in the list
-        #         assert len(entry["data"]) == 1
-        #         entry["data"] = next(iter(entry["data"]))
-
         return result
-    
-    #TODO: all this cleaning shit needs to get moved up a layer holy hell
-    def clean_blackbox_response(self, blackbox_response: List) -> List:
-        for entry in blackbox_response:
-            entry["data"] = json.loads(entry["raw_data"])["data"]
-            entry.pop("raw_data")
-
-            if entry["key_name"] == "RND Production List":
-                entry["data"] = entry["data"]["/list"]
-
-            if entry["key_name"] == "high_research_level":
-                # temp check to see if there's ever going to be more than one element in the list
-                assert len(entry["data"]) == 1
-                entry["data"] = next(iter(entry["data"]))
-        
-        return blackbox_response
 
     def fetch_playercounts(self, round_id: int) -> Dict[str, int]:
         """Returns playercount timestamps for `round_id`"""
@@ -76,6 +48,7 @@ class APIFetch:
         return result
 
     def fetch_single_round(self, round_id: int) -> Dict:
+        """Debug method, needs refactoring in the future."""
         round_metadata = self.fetch_metadata(round_id)
         round_blackbox = self.fetch_blackbox(round_id)
         round_playercounts = self.fetch_playercounts(round_id)
@@ -85,7 +58,7 @@ class APIFetch:
 
         return [round_metadata]
 
-    def fetch_whole_round_batch(self, offset_end: int) -> Dict:
+    def fetch_whole_round_batch(self, offset_end: int) -> tuple:
         """Get all queryable information from the most recent to the target `offset_end` round."""
 
         print("FETCH::Starting whole round batch fetch...\n")
@@ -112,22 +85,10 @@ class APIFetch:
             "\n",
         )
 
-        # if this assert ever fails something has gone incredibly wrong and we need to know about it
-        assert len(blackbox_list) == len(playercount_list) == len(valid_round_ids)
-
-        for idx, metadata in enumerate(round_metadata_list):
-            metadata["playercounts"] = playercount_list[idx]
-            metadata["stats"] = blackbox_list[idx]
-
-        print(
-            "FETCH::Roundlist collected successfuly with length",
-            len(round_metadata_list),
-            "\n",
-        )
-
-        return round_metadata_list
+        return (round_metadata_list, blackbox_list, playercount_list)
 
     def concurrent_whole_round_batch(self, offset_end: int) -> Dict:
+        """This was a bad idea from the start and its implementation makes it a micro-DDOS machine..."""
         print("FETCH::Starting concurrent get...\n")
 
         # TODO: pretty sure a generator expression is going to shit itself if we try to multithread it - have to test

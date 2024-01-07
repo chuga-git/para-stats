@@ -26,14 +26,6 @@ class SessionAdapter:
         """Returns deserialized json response from endpoint"""
         full_url = self.base_url + endpoint
 
-
-        if self._rate_limit_hour_remaining < 200:
-            print("WARNING::RATE LIMIT APPROACHING >>", self._rate_limit_hour_remaining)
-        # can't get anything useful
-        if self._rate_limit_hour_remaining < 50:
-            # so we shit ourselves and die instead of giving the database null values
-            raise RateLimitError
-
         try:
             response = self._session.get(full_url)
             response.raise_for_status()
@@ -55,6 +47,6 @@ class SessionAdapter:
             logging.critical("Handled bad JSON with body", err, exc_info=1)
             data_json = None
 
-        print(f"ADAPTER::Successful GET and deserialize of endpoint:\t{endpoint}\t{response.elapsed.total_seconds()} sec")
+        print(f"ADAPTER::Successful GET and deserialize of endpoint: {endpoint}\t{response.elapsed.total_seconds()} sec")
 
         return data_json

@@ -1,9 +1,7 @@
-from __future__ import annotations
-
+from config import Config
 from sqlalchemy import Column, Table, MetaData
 from sqlalchemy.types import Integer, Text
 from sqlalchemy.dialects.postgresql import JSONB
-from config import Config
 
 """
 https://blog.codinghorror.com/object-relational-mapping-is-the-vietnam-of-computer-science/
@@ -28,6 +26,7 @@ round_table = Table(
     Column("playercounts", JSONB),
     Column("stats", JSONB)
 )
+
 
 # class Round(Base):
 #     __tablename__ = 'rounds'

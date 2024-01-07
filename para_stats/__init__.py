@@ -29,7 +29,7 @@ def debug_load(fpath):
 
 def fetch_rounds(round_id):
     fetcher = APIFetch()
-    round_list = fetcher.concurrent_whole_round_batch(round_id)
+    round_list = fetcher.fetch_whole_round_batch(round_id)
     return round_list
 
 def prep_rounds(rounds_list):
