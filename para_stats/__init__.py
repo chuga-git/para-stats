@@ -7,16 +7,16 @@ import pickle
 DEBUG = True
 
 
-def init_script(round_id: int):
-    responses = fetch_rounds(round_id)
+def init_script(start_round_id: int, end_round_id: int):
+    responses = fetch_rounds(start_round_id, end_round_id)
     prepped_round_list = prep_rounds(responses)
     upload = load_rounds(prepped_round_list)
     print(upload)
 
 
-def fetch_rounds(round_id: int) -> tuple:
+def fetch_rounds(start_round_id: int, end_round_id: int) -> tuple:
     fetcher = APIFetch()
-    response_tuple = fetcher.fetch_whole_round_batch(round_id)
+    response_tuple = fetcher.fetch_whole_round_batch(start_round_id, end_round_id)
     return response_tuple
 
 

@@ -8,14 +8,11 @@ from .models import round_table
 class DatabaseLoader:
     def __init__(self, config) -> None:
         self.db_uri = config.db_uri
-        self.db_schema = config.db_schema
-        self.merge_table = config.db_mergetable
-
-        # postgre shits itself and dies when you try to do a merge with sqlalchemy table reflection so this is useless
-        self.temp_table = config.db_temptable
+        self.db_ods_schema = config.db_ods_schema
+        self.ods_table = config.db_ods_table
 
         self.engine = create_engine(self.db_uri, echo=False)
-        self.db_metadata = MetaData(schema=self.db_schema)
+        self.db_metadata = MetaData(schema=self.db_ods_schema) # the models.py metadata overwrites this one which means that the schema isn't saved. genius.
         self.db_metadata.create_all(bind=self.engine, tables=[round_table])
 
     # this doesnt work because you cant FUCKING UPSERT
@@ -26,7 +23,7 @@ class DatabaseLoader:
             if_exists="replace",
             chunksize=500,
             index=False,
-            schema=self.db_schema,
+            schema=self.db_ods_schema,
             dtype={
                 "round_id": Integer,
                 "init_datetime": Text,
@@ -55,13 +52,12 @@ class DatabaseLoader:
         TODO: this needs to upsert instead of do nothing on conflict because something is going to break at some point and it needs to be overwritten
         """
 
-        self.db_metadata.create_all(self.engine)
-
         # why does it need a session AND a session.commit() to work? i don't know!!!
         with Session(self.engine) as session:
             session.execute(insert(round_table).on_conflict_do_nothing(), round_list)
             session.commit()
 
-        result_statement = f"Inserted {len(round_list)} rows into {self.merge_table}"
+        # TODO: figure out how to get the reflected Result rowcount lmfao
+        result_statement = f"Inserted {len(round_list)} rows into {self.ods_table}"
 
         return result_statement

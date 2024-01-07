@@ -25,11 +25,6 @@ class TransformData:
     def collect_round_batch(
         self, round_metadata_list: list, blackbox_raw_list: list, playercount_list: list
     ) -> list:
-        # we're getting three lists here and we want to clean and collect into one list
-        # blackbox gets sent to the laundromat and the return gets slapped onto the metadata response
-        # mutating the metadata list sucks ass but doing a deepcopy would suck ass even more
-
-        # clean it up
         blackbox_list = [self.clean_blackbox_response(r) for r in blackbox_raw_list]
 
         for idx, metadata in enumerate(round_metadata_list):

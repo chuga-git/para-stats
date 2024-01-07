@@ -12,7 +12,7 @@ class SessionAdapter:
 
     def __init__(
         self,
-        base_url: str = "https://api.paradisestation.org",
+        base_url: str = "https://api.paradisestation.org/stats",
         logger: logging.Logger = None,
     ) -> None:
         # logging = logger or logging.getLogger(__name__)
@@ -52,7 +52,7 @@ class SessionAdapter:
             data_json = None
 
         print(
-            f"ADAPTER::Successful GET and deserialize of endpoint: {endpoint}\t{response.elapsed.total_seconds()} sec"
+            f"ADAPTER::Successful GET/deserialize of endpoint\t{endpoint}\t{response.elapsed.total_seconds()} sec\tratelimit remaining: {self._rate_limit_hour_remaining}"
         )
 
         return data_json

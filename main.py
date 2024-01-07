@@ -4,8 +4,10 @@ import sys
 if __name__ == "__main__":
     # TODO: debug cmd line arguments, get rid of this later 
     if len(sys.argv) > 1:
-        round_id = int(sys.argv[1])
+        start_round_id = int(sys.argv[1])
+        end_round_id = int(sys.argv[2])
     else:
-        round_id = 38723 # debug default gets us one batch
+        start_round_id = 0
+        end_round_id = 38723 
 
-    init_script(round_id)
+    init_script(start_round_id, end_round_id)

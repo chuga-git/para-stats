@@ -9,7 +9,7 @@ class APIFetch:
         # logging = logger or logging.getLogger(__name__)
         self._adapter = SessionAdapter(logger=logging)
 
-    def __fetch_roundlist_paged(self, offset_end: int, offset_start: int = 0) -> List:
+    def __fetch_roundlist_paged(self, offset_start: int, offset_end: int) -> List:
         """Generator for paginated retrieval of roundlist endpoint. Will return overlapping data."""
 
         def fetch_single_page(offset: int) -> List:
@@ -22,10 +22,10 @@ class APIFetch:
             result = fetch_single_page(result[-1]["round_id"])
             yield result
 
-    def fetch_roundlist_batch(self, offset_end: int, offset_start: int = 0) -> List:
+    def fetch_roundlist_batch(self, offset_start: int, offset_end: int) -> List:
         rounds_list = []
 
-        for result in self.__fetch_roundlist_paged(offset_end, offset_start):
+        for result in self.__fetch_roundlist_paged(offset_start, offset_end):
             rounds_list += result
 
         return rounds_list
@@ -59,12 +59,13 @@ class APIFetch:
 
         return [round_metadata]
 
-    def fetch_whole_round_batch(self, offset_end: int) -> tuple:
+    def fetch_whole_round_batch(self, offset_start: int, offset_end: int) -> tuple:
         """Get all queryable information from the most recent to the target `offset_end` round."""
 
         print("FETCH::Starting whole round batch fetch...\n")
 
-        round_metadata_list = self.fetch_roundlist_batch(offset_end)
+        # grab the rounds we'll need to query and then get the rest of their info after
+        round_metadata_list = self.fetch_roundlist_batch(offset_start, offset_end)
         valid_round_ids = [r["round_id"] for r in round_metadata_list]
         print(
             "FETCH::Metadata retrieved successfully with length",
@@ -87,6 +88,9 @@ class APIFetch:
         )
 
         return (round_metadata_list, blackbox_list, playercount_list)
+
+
+# --------------- do not cross, bad juju ahead ---------------
 
     def concurrent_whole_round_batch(self, offset_end: int) -> Dict:
         """This was a bad idea from the start and its implementation makes it a micro-DDOS machine..."""

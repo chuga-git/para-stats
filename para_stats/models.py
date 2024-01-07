@@ -7,10 +7,11 @@ from sqlalchemy.dialects.postgresql import JSONB
 https://blog.codinghorror.com/object-relational-mapping-is-the-vietnam-of-computer-science/
 """
 
-meta = MetaData()
+# fuck
+meta = MetaData(schema=Config.db_ods_schema)
 
 round_table = Table(
-    Config.db_mergetable,
+    Config.db_ods_table,
     meta,
     Column("round_id", Integer, primary_key=True),
     Column("init_datetime", Text),
