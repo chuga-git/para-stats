@@ -11,6 +11,7 @@ class APIFetch:
 
     def __fetch_roundlist_paged(self, offset_end: int, offset_start: int = 0) -> List:
         """Generator for paginated retrieval of roundlist endpoint. Will return overlapping data."""
+
         def fetch_single_page(offset: int) -> List:
             return self._adapter.get(f"/roundlist?offset={offset}")
 
@@ -100,10 +101,14 @@ class APIFetch:
         # TODO: make max workers a config parameter
         with ThreadPoolExecutor(max_workers=2) as pool:
             # this should be safe to double task
-            raw_blackbox_responses = list(pool.map(self.fetch_blackbox, valid_round_ids))
+            raw_blackbox_responses = list(
+                pool.map(self.fetch_blackbox, valid_round_ids)
+            )
             playercount_list = list(pool.map(self.fetch_playercounts, valid_round_ids))
-        
-        blackbox_list = [self.clean_blackbox_response(i) for i in raw_blackbox_responses]
+
+        blackbox_list = [
+            self.clean_blackbox_response(i) for i in raw_blackbox_responses
+        ]
 
         print(
             "FETCH::Roundlist collected successfuly with length",

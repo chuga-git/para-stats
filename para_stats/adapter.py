@@ -3,7 +3,6 @@ import logging
 from typing import List
 from json import JSONDecodeError
 from .exceptions import RateLimitError, RoundNotFoundError
-# https://api.paradisestation.org/stats/
 
 
 class SessionAdapter:
@@ -11,12 +10,15 @@ class SessionAdapter:
     Adapter for Session connection pooling
     """
 
-    def __init__(self, base_url: str = "https://api.paradisestation.org", logger: logging.Logger = None) -> None:
-    
-        #logging = logger or logging.getLogger(__name__)
+    def __init__(
+        self,
+        base_url: str = "https://api.paradisestation.org",
+        logger: logging.Logger = None,
+    ) -> None:
+        # logging = logger or logging.getLogger(__name__)
         self.base_url = base_url
         self._session = requests.Session()
-        
+
         # TODO: implement cached request counting for automated rate limiting
         self._rate_limit_min = 500
         self._rate_limit_hour_max = 3600
@@ -39,7 +41,9 @@ class SessionAdapter:
                     # idk about this man
                     SystemExit(err)
 
-        self._rate_limit_hour_remaining = int(response.headers['X-Rate-Limit-Remaining'])
+        self._rate_limit_hour_remaining = int(
+            response.headers["X-Rate-Limit-Remaining"]
+        )
 
         try:
             data_json = response.json()
@@ -47,6 +51,8 @@ class SessionAdapter:
             logging.critical("Handled bad JSON with body", err, exc_info=1)
             data_json = None
 
-        print(f"ADAPTER::Successful GET and deserialize of endpoint: {endpoint}\t{response.elapsed.total_seconds()} sec")
+        print(
+            f"ADAPTER::Successful GET and deserialize of endpoint: {endpoint}\t{response.elapsed.total_seconds()} sec"
+        )
 
         return data_json
