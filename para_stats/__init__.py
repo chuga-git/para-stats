@@ -1,8 +1,9 @@
+import pickle
+import json
 from config import Config
 from .api_fetch import APIFetch
 from .transform import TransformData
 from .db import DatabaseLoader
-import pickle
 
 DEBUG = True
 
@@ -17,12 +18,26 @@ def init_script(start_round_id: int, end_round_id: int):
 def fetch_rounds(start_round_id: int, end_round_id: int) -> tuple:
     fetcher = APIFetch()
     response_tuple = fetcher.fetch_whole_round_batch(start_round_id, end_round_id)
+
+    # dump it
+    with open("data/raw/metadata_cache.json", 'w') as f:
+        json.dump(response_tuple[0], f)
+        
+    with open("data/raw/playercount_cache.json", 'w') as f:
+        json.dump(response_tuple[1], f)
+
+    with open("data/raw/blackbox_cache.json", 'w') as f:
+        json.dump(response_tuple[2], f)
+
     return response_tuple
 
 
 def prep_rounds(endpoint_responses: tuple) -> list:
     transform_data = TransformData()
     collected_round_list = transform_data.collect_round_batch(*endpoint_responses) # hopefully this preserves order
+
+    with open("data/processed/processed_rounds_cache.json", 'w') as f:
+        json.dump(collected_round_list, f)
 
     return collected_round_list
 

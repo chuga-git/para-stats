@@ -97,3 +97,5 @@ ca-certificate.crt
 
 *_exclude
 *.json
+
+*.txt

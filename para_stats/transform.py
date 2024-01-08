@@ -1,10 +1,12 @@
 from typing import List
+import logging
 import json
 
 
 class TransformData:
     def __init__(self, round_list: List = None) -> None:
         # this whole situation is fucked
+        self._log = logging.getLogger(__name__)
         self.round_list = round_list
 
     def clean_blackbox_response(self, blackbox_response: List) -> List:
@@ -15,10 +17,11 @@ class TransformData:
             if entry["key_name"] == "RND Production List":
                 entry["data"] = entry["data"]["/list"]
 
-            if entry["key_name"] == "high_research_level":
-                # temp check to see if there's ever going to be more than one element in the list
-                assert len(entry["data"]) == 1
-                entry["data"] = next(iter(entry["data"]))
+            # as it turns out, there is ever going to be more than one element in the list
+            # if entry["key_name"] == "high_research_level":
+            #     # temp check to see if there's ever going to be more than one element in the list
+            #     assert len(entry["data"]) == 1
+            #     entry["data"] = next(iter(entry["data"]))
 
         return blackbox_response
 
@@ -31,10 +34,6 @@ class TransformData:
             metadata["playercounts"] = playercount_list[idx]
             metadata["stats"] = blackbox_list[idx]
 
-        print(
-            "FETCH::Roundlist collected successfuly with length",
-            len(round_metadata_list),
-            "\n",
-        )
+        self._log.info(f"Roundlist collected successfuly with length {len(round_metadata_list)}")
 
         return round_metadata_list
