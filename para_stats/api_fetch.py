@@ -75,7 +75,7 @@ class APIFetch:
         playercount_list = [self.fetch_playercounts(r) for r in valid_round_ids]
         self._log.info(f"Playercount data retrieved successfully with length {len(playercount_list)}")
 
-        return (round_metadata_list, blackbox_list, playercount_list)
+        return (round_metadata_list, playercount_list, blackbox_list)
 
     def get_most_recent_round_id(self):
         return self._adapter.get("/roundlist?offset=0")[0]["round_id"]

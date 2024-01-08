@@ -9,20 +9,29 @@ DEBUG = True
 
 
 def init_script(start_round_id: int, end_round_id: int):
-    responses = fetch_rounds(start_round_id, end_round_id)
-    prepped_round_list = prep_rounds(responses)
+    #responses = fetch_rounds(start_round_id, end_round_id)
+    prepped_round_list = prep_rounds(read_raw_caches())
     upload = load_rounds(prepped_round_list)
     print(upload)
 
+def read_raw_caches() -> tuple:
+    with open("data/raw/metadata_cache.json") as f:
+        metadata_raw = json.load(f)
+    with open("data/raw/playercount_cache.json") as f:
+        playercount_raw = json.load(f)
+    with open("data/raw/blackbox_cache.json") as f:
+        blackbox_raw = json.load(f)
+    
+    return (metadata_raw, playercount_raw, blackbox_raw)
 
 def fetch_rounds(start_round_id: int, end_round_id: int) -> tuple:
     fetcher = APIFetch()
     response_tuple = fetcher.fetch_whole_round_batch(start_round_id, end_round_id)
 
-    # dump it
+    # hmm yes give me several hundred megabytes of text please
     with open("data/raw/metadata_cache.json", 'w') as f:
         json.dump(response_tuple[0], f)
-        
+
     with open("data/raw/playercount_cache.json", 'w') as f:
         json.dump(response_tuple[1], f)
 

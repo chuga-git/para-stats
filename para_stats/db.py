@@ -12,7 +12,9 @@ class DatabaseLoader:
         self.ods_table = config.db_ods_table
 
         self.engine = create_engine(self.db_uri, echo=False)
-        self.db_metadata = MetaData(schema=self.db_ods_schema) # the models.py metadata overwrites this one which means that the schema isn't saved. genius.
+        self.db_metadata = MetaData(
+            schema=self.db_ods_schema
+        )  # the models.py metadata overwrites this one which means that the schema isn't saved. genius.
         self.db_metadata.create_all(bind=self.engine, tables=[round_table])
 
     # this doesnt work because you cant FUCKING UPSERT
@@ -48,13 +50,24 @@ class DatabaseLoader:
 
     def upload_round_list(self, round_list: list) -> str:
         """
-        Loads cleaned round list into postgres database and returns success string
-        TODO: this needs to upsert instead of do nothing on conflict because something is going to break at some point and it needs to be overwritten
+        Upserts cleaned list of complete rounds
         """
 
-        # why does it need a session AND a session.commit() to work? i don't know!!!
         with Session(self.engine) as session:
-            session.execute(insert(round_table).on_conflict_do_nothing(), round_list)
+            insert_stmt = insert(round_table).values(round_list)
+
+            # i am in hell
+            update_cols = {
+                col.name: col
+                for col in insert_stmt.excluded
+                if col.name not in "round_id"
+            }
+
+            update_stmt = insert_stmt.on_conflict_do_update(
+                index_elements=["round_id"], set_=update_cols
+            )
+
+            session.execute(update_stmt)
             session.commit()
 
         # TODO: figure out how to get the reflected Result rowcount lmfao

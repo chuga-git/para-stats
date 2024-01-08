@@ -9,7 +9,7 @@ if __name__ == "__main__":
         end_round_id = int(sys.argv[2])
     else:
         start_round_id = 0
-        end_round_id = 37727#38723  
+        end_round_id = 38723#37727
 
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
