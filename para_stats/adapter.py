@@ -10,12 +10,8 @@ class SessionAdapter:
     Adapter for Session connection pooling
     """
 
-    def __init__(
-        self,
-        base_url: str = "https://api.paradisestation.org/stats",
-        logger: logging.Logger = None,
-    ) -> None:
-        # logging = logger or logging.getLogger(__name__)
+    def __init__(self, base_url: str = "https://api.paradisestation.org/stats") -> None:
+        self._log = logging.getLogger(__name__)
         self.base_url = base_url
         self._session = requests.Session()
 
@@ -28,31 +24,13 @@ class SessionAdapter:
         """Returns deserialized json response from endpoint"""
         full_url = self.base_url + endpoint
 
-        try:
-            response = self._session.get(full_url)
-            response.raise_for_status()
-        except requests.exceptions.HTTPError as err:
-            match err.response.status_code:
-                case 429:
-                    raise RateLimitError
-                case 404:
-                    raise RoundNotFoundError
-                case _:
-                    # idk about this man
-                    SystemExit(err)
+        response = self._session.get(full_url)
+        response.raise_for_status()
 
-        self._rate_limit_hour_remaining = int(
-            response.headers["X-Rate-Limit-Remaining"]
-        )
+        self._rate_limit_hour_remaining = int(response.headers["X-Rate-Limit-Remaining"])
 
-        try:
-            data_json = response.json()
-        except (ValueError, TypeError, JSONDecodeError) as err:
-            logging.critical("Handled bad JSON with body", err, exc_info=1)
-            data_json = None
+        data_json = response.json()
 
-        print(
-            f"ADAPTER::Successful GET/deserialize of endpoint\t{endpoint}\t{response.elapsed.total_seconds()} sec\tratelimit remaining: {self._rate_limit_hour_remaining}"
-        )
+        self._log.info(f"Successful GET/deserialize of endpoint\t{endpoint}\t{response.elapsed.total_seconds()} sec\tratelimit remaining: {int(response.headers['X-Rate-Limit-Remaining'])}")
 
         return data_json

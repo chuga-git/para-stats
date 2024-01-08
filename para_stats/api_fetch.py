@@ -5,9 +5,9 @@ from concurrent.futures import ThreadPoolExecutor
 
 
 class APIFetch:
-    def __init__(self, logger: logging.Logger = None) -> None:
-        # logging = logger or logging.getLogger(__name__)
-        self._adapter = SessionAdapter(logger=logging)
+    def __init__(self) -> None:
+        self._log = logging.getLogger(__name__)
+        self._adapter = SessionAdapter()
 
     def __fetch_roundlist_paged(self, offset_start: int, offset_end: int) -> List:
         """Generator for paginated retrieval of roundlist endpoint. Will return overlapping data."""
@@ -62,46 +62,37 @@ class APIFetch:
     def fetch_whole_round_batch(self, offset_start: int, offset_end: int) -> tuple:
         """Get all queryable information from the most recent to the target `offset_end` round."""
 
-        print("FETCH::Starting whole round batch fetch...\n")
+        self._log.info("Starting whole round batch fetch")
 
         # grab the rounds we'll need to query and then get the rest of their info after
         round_metadata_list = self.fetch_roundlist_batch(offset_start, offset_end)
         valid_round_ids = [r["round_id"] for r in round_metadata_list]
-        print(
-            "FETCH::Metadata retrieved successfully with length",
-            len(round_metadata_list),
-            "\n",
-        )
+        self._log.info(f"Metadata retrieved successfully with length {len(round_metadata_list)}")
 
         blackbox_list = [self.fetch_blackbox(r) for r in valid_round_ids]
-        print(
-            "FETCH::Blackbox data retrieved successfully with length",
-            len(blackbox_list),
-            "\n",
-        )
+        self._log.info(f"Blackbox data retrieved successfully with length {len(blackbox_list)}")
 
         playercount_list = [self.fetch_playercounts(r) for r in valid_round_ids]
-        print(
-            "FETCH::Playercount data retrieved successfully with length",
-            len(playercount_list),
-            "\n",
-        )
+        self._log.info(f"Playercount data retrieved successfully with length {len(playercount_list)}")
 
         return (round_metadata_list, blackbox_list, playercount_list)
+
+    def get_most_recent_round_id(self):
+        return self._adapter.get("/roundlist?offset=0")[0]["round_id"]
 
 
 # --------------- do not cross, bad juju ahead ---------------
 
     def concurrent_whole_round_batch(self, offset_end: int) -> Dict:
         """This was a bad idea from the start and its implementation makes it a micro-DDOS machine..."""
-        print("FETCH::Starting concurrent get...\n")
+        self._log.info("Starting concurrent get...")
 
         # TODO: pretty sure a generator expression is going to shit itself if we try to multithread it - have to test
         round_metadata_list = self.fetch_roundlist_batch(offset_end)
-        print("got metadata list of len", len(round_metadata_list))
+        self._log.info("got metadata list of len", len(round_metadata_list))
         valid_round_ids = [r["round_id"] for r in round_metadata_list]
 
-        print("Starting concurrent fetch of catchup rounds")
+        self._log.info("Starting concurrent fetch of catchup rounds")
         # TODO: make max workers a config parameter
         with ThreadPoolExecutor(max_workers=2) as pool:
             # this should be safe to double task
@@ -114,10 +105,9 @@ class APIFetch:
             self.clean_blackbox_response(i) for i in raw_blackbox_responses
         ]
 
-        print(
-            "FETCH::Roundlist collected successfuly with length",
+        self._log.info(
+            "Roundlist collected successfuly with length",
             len(round_metadata_list),
-            "\n",
         )
 
         for idx, metadata in enumerate(round_metadata_list):
@@ -125,6 +115,3 @@ class APIFetch:
             metadata["stats"] = blackbox_list[idx]
 
         return round_metadata_list
-
-    def get_most_recent_round_id(self):
-        return self._adapter.get("/roundlist?offset=0")[0]["round_id"]
