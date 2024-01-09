@@ -1,4 +1,7 @@
 import logging
+import time
+import requests
+from functools import partial
 from typing import List, Dict
 from .adapter import SessionAdapter
 from concurrent.futures import ThreadPoolExecutor
@@ -84,34 +87,32 @@ class APIFetch:
 # --------------- do not cross, bad juju ahead ---------------
 
     def concurrent_whole_round_batch(self, offset_end: int) -> Dict:
-        """This was a bad idea from the start and its implementation makes it a micro-DDOS machine..."""
         self._log.info("Starting concurrent get...")
 
         # TODO: pretty sure a generator expression is going to shit itself if we try to multithread it - have to test
         round_metadata_list = self.fetch_roundlist_batch(offset_end)
-        self._log.info("got metadata list of len", len(round_metadata_list))
-        valid_round_ids = [r["round_id"] for r in round_metadata_list]
 
-        self._log.info("Starting concurrent fetch of catchup rounds")
-        # TODO: make max workers a config parameter
-        with ThreadPoolExecutor(max_workers=2) as pool:
-            # this should be safe to double task
-            raw_blackbox_responses = list(
-                pool.map(self.fetch_blackbox, valid_round_ids)
-            )
-            playercount_list = list(pool.map(self.fetch_playercounts, valid_round_ids))
+        self._log.info("Got metadata list of len", len(round_metadata_list))
 
-        blackbox_list = [
-            self.clean_blackbox_response(i) for i in raw_blackbox_responses
-        ]
+        round_id_list = [r["round_id"] for r in round_metadata_list]
+        test_pcount_urls = ["https://api.paradisestation.org/stats/playercounts/" + str(i) for i in round_id_list]
+        test_blackbox_urls = ["https://api.paradisestation.org/stats/blackbox/" + str(i) for i in round_id_list]
 
-        self._log.info(
-            "Roundlist collected successfuly with length",
-            len(round_metadata_list),
-        )
+        playercount_list, raw_blackbox_list = self.__concurrent_fetch_list(test_pcount_urls, test_blackbox_urls)
 
-        for idx, metadata in enumerate(round_metadata_list):
-            metadata["playercounts"] = playercount_list[idx]
-            metadata["stats"] = blackbox_list[idx]
+        cleaned_blackbox_list = [self.clean_blackbox_response(i) for i in raw_blackbox_list]
+        self._log.info("Successfully got playercount and blackbox lists with lens:", len(playercount_list), len(cleaned_blackbox_list))
 
-        return round_metadata_list
+        return (round_metadata_list, playercount_list, cleaned_blackbox_list)
+    
+    def __concurrent_fetch_list(self, playercount_urls, blackbox_urls):
+        CONNECTIONS = 2
+        # TODO: needs to not be urls, just endpoints :)
+        self._log.info("Starting concurrent session pool with url lists of len:", len(playercount_urls), len(blackbox_urls))
+
+        with requests.Session() as session:
+            with ThreadPoolExecutor(max_workers=CONNECTIONS) as pool:
+                playercount_list = list(pool.map(partial(self._adapter.concurrent_get, session), playercount_urls))
+                raw_blackbox_list = list(pool.map(partial(self._adapter.concurrent_get, session), blackbox_urls))
+
+        return playercount_list, raw_blackbox_list
