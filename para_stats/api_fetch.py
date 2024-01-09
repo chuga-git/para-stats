@@ -84,8 +84,6 @@ class APIFetch:
         return self._adapter.get("/roundlist?offset=0")[0]["round_id"]
 
 
-# --------------- do not cross, bad juju ahead ---------------
-
     def concurrent_whole_round_batch(self, offset_start: int, offset_end: int) -> Dict:
         self._log.info("Starting concurrent get...")
 
@@ -101,14 +99,14 @@ class APIFetch:
         playercount_list, raw_blackbox_list = self.__concurrent_fetch_list(test_pcount_urls, test_blackbox_urls)
 
         cleaned_blackbox_list = [self.clean_blackbox_response(i) for i in raw_blackbox_list]
-        self._log.info("Successfully got playercount and blackbox lists with lens:", len(playercount_list), len(cleaned_blackbox_list))
+        self._log.info(f"Successfully got playercount and blackbox lists with lens: {len(playercount_list)}, {len(cleaned_blackbox_list)}")
 
         return (round_metadata_list, playercount_list, cleaned_blackbox_list)
     
     def __concurrent_fetch_list(self, playercount_urls, blackbox_urls):
         CONNECTIONS = 2
         # TODO: needs to not be urls, just endpoints :)
-        self._log.info("Starting concurrent session pool with url lists of len:", len(playercount_urls), len(blackbox_urls))
+        self._log.info(f"Starting concurrent session pool with url lists of lens: {len(playercount_urls)}, {len(blackbox_urls)}")
 
         with requests.Session() as session:
             with ThreadPoolExecutor(max_workers=CONNECTIONS) as pool:
