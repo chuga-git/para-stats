@@ -36,16 +36,16 @@ class APIFetch:
             last_id = result[-1]["round_id"]
             result = self._adapter.get(f"/roundlist?offset={last_id}")
             metadata_list += result
-        
+
         return metadata_list
-    
+
     def ___fetch_all_metadata(self) -> List:
         metadata_list = []
 
         with requests.Session() as session:
             for result in self.__page_all_metadata(session):
                 metadata_list += result
-        
+
         return metadata_list
 
     def fetch_roundlist_batch(self, offset_start: int, offset_end: int) -> List:
@@ -93,19 +93,24 @@ class APIFetch:
         # grab the rounds we'll need to query and then get the rest of their info after
         round_metadata_list = self.fetch_roundlist_batch(offset_start, offset_end)
         valid_round_ids = [r["round_id"] for r in round_metadata_list]
-        self._log.info(f"Metadata retrieved successfully with length {len(round_metadata_list)}")
+        self._log.info(
+            f"Metadata retrieved successfully with length {len(round_metadata_list)}"
+        )
 
         blackbox_list = [self.fetch_blackbox(r) for r in valid_round_ids]
-        self._log.info(f"Blackbox data retrieved successfully with length {len(blackbox_list)}")
+        self._log.info(
+            f"Blackbox data retrieved successfully with length {len(blackbox_list)}"
+        )
 
         playercount_list = [self.fetch_playercounts(r) for r in valid_round_ids]
-        self._log.info(f"Playercount data retrieved successfully with length {len(playercount_list)}")
+        self._log.info(
+            f"Playercount data retrieved successfully with length {len(playercount_list)}"
+        )
 
         return (round_metadata_list, playercount_list, blackbox_list)
 
     def get_most_recent_round_id(self):
         return self._adapter.get("/roundlist?offset=0")[0]["round_id"]
-
 
     def concurrent_whole_round_batch(self, offset_start: int, offset_end: int) -> tuple:
         self._log.info("Starting concurrent get...")
@@ -115,22 +120,38 @@ class APIFetch:
         self._log.info(f"Got metadata list of len {len(round_metadata_list)}")
 
         round_id_list = [r["round_id"] for r in round_metadata_list]
-        playercount_list, raw_blackbox_list = self.__concurrent_fetch_list(round_id_list)
+        playercount_list, raw_blackbox_list = self.__concurrent_fetch_list(
+            round_id_list
+        )
 
-        self._log.info(f"Successfully got playercount and blackbox lists with lens: {len(playercount_list)}, {len(raw_blackbox_list)}")
+        self._log.info(
+            f"Successfully got playercount and blackbox lists with lens: {len(playercount_list)}, {len(raw_blackbox_list)}"
+        )
 
         return (round_metadata_list, playercount_list, raw_blackbox_list)
-    
+
     def __concurrent_fetch_list(self, round_id_list):
         playercount_endpoints = ["/playercounts/" + str(i) for i in round_id_list]
         blackbox_endpoints = ["/blackbox/" + str(i) for i in round_id_list]
-        
-        self._log.info(f"Starting concurrent session pool with endpoint lists of lens: {len(playercount_endpoints)}, {len(blackbox_endpoints)}")
+
+        self._log.info(
+            f"Starting concurrent session pool with endpoint lists of lens: {len(playercount_endpoints)}, {len(blackbox_endpoints)}"
+        )
 
         CONNECTIONS = 2
         with requests.Session() as session:
             with ThreadPoolExecutor(max_workers=CONNECTIONS) as pool:
-                playercount_list = list(pool.map(partial(self._adapter.concurrent_get, session), playercount_endpoints))
-                raw_blackbox_list = list(pool.map(partial(self._adapter.concurrent_get, session), blackbox_endpoints))
+                playercount_list = list(
+                    pool.map(
+                        partial(self._adapter.concurrent_get, session),
+                        playercount_endpoints,
+                    )
+                )
+                raw_blackbox_list = list(
+                    pool.map(
+                        partial(self._adapter.concurrent_get, session),
+                        blackbox_endpoints,
+                    )
+                )
 
         return playercount_list, raw_blackbox_list

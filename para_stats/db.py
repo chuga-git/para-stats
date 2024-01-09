@@ -1,13 +1,16 @@
+import logging
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 from sqlalchemy.dialects.postgresql import insert
 from .models import round_table, metadata_table, db_metadata
 
+
 class DatabaseLoader:
     def __init__(self, config) -> None:
+        self._log = logging.getLogger(__name__)
         self.db_uri = config.db_uri
-        #self.db_ods_schema = config.db_ods_schema
-        #self.ods_table = config.db_ods_table
+        # self.db_ods_schema = config.db_ods_schema
+        # self.ods_table = config.db_ods_table
 
         self.engine = create_engine(self.db_uri, echo=False)
         self.db_metadata = db_metadata
@@ -18,12 +21,14 @@ class DatabaseLoader:
 
         TODO: needs error handling and to actually return the number of rows inserted :)
         """
-
-        self.db_metadata.create_all(bind=self.engine, tables=[target_table])
-
+        self._log.info(
+            f"Starting upsert against {target_table} with list of len {len(data_list)}"
+        )
         # FUCK!!!!
         CHUNKSIZE = 1000
         chunks = (len(data_list) // CHUNKSIZE) + 1
+
+        self.db_metadata.create_all(bind=self.engine, tables=[target_table])
 
         with Session(self.engine) as session:
             for i in range(chunks):
@@ -46,14 +51,18 @@ class DatabaseLoader:
                 update_stmt = insert_stmt.on_conflict_do_update(
                     index_elements=["round_id"], set_=update_cols
                 )
-                    
+
                 session.execute(update_stmt)
                 session.commit()
+
+                self._log.info(
+                    f"Chunk of len {len(chunk_iter)} successfully committed, {chunks - i} to go"
+                )
 
         result_statement = f"Inserted {len(data_list)} rows into {target_table}"
 
         return result_statement
-    
+
     def db_upload_rounds(self, round_list: list):
         result = self.__upsert_to_database(round_list, round_table)
         return result

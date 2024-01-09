@@ -59,7 +59,7 @@ class TransformData:
             if not isinstance(entry, dict):
                 print(type(entry))
                 print(entry)
-                raise TypeError("Shit fucked up with entry")
+                raise TypeError
 
             try:
                 raw_data = json.loads(entry["raw_data"])
@@ -91,9 +91,12 @@ class TransformData:
             cleaned_response[entry["key_name"]] = data
 
         return cleaned_response
-    
+
     def collect_round_batch(
-        self, round_metadata_list: List, playercount_list: List, blackbox_raw_list: List, 
+        self,
+        round_metadata_list: List,
+        playercount_list: List,
+        blackbox_raw_list: List,
     ) -> List:
         cleaned_blackbox_list = []
 

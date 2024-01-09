@@ -8,11 +8,14 @@ from .db import DatabaseLoader
 DEBUG = True
 WRITE_TO_CACHE = False
 
-def init_script(start_round_id: int, end_round_id: int):
+
+def init_script():
+    # TODO: get list of rounds that need filling from metadata table and then query them in batches.
     responses = fetch_rounds(start_round_id, end_round_id)
     prepped_round_list = prep_rounds(responses)
     upload = load_rounds(prepped_round_list)
     print(upload)
+
 
 def update_db_metadata():
     """TODO: this needs to build the whole thing once and then just look up against local storage"""
@@ -22,19 +25,20 @@ def update_db_metadata():
     upload = db.db_upload_metadata(metadata_list)
     print(upload)
 
+
 def fetch_rounds(start_round_id: int, end_round_id: int) -> tuple:
     fetcher = APIFetch()
     response_tuple = fetcher.concurrent_whole_round_batch(start_round_id, end_round_id)
 
     # hmm yes give me several hundred megabytes of text please
     if WRITE_TO_CACHE:
-        with open("data/raw/metadata_cache.json", 'w') as f:
+        with open("data/raw/metadata_cache.json", "w") as f:
             json.dump(response_tuple[0], f)
 
-        with open("data/raw/playercount_cache.json", 'w') as f:
+        with open("data/raw/playercount_cache.json", "w") as f:
             json.dump(response_tuple[1], f)
 
-        with open("data/raw/blackbox_cache.json", 'w') as f:
+        with open("data/raw/blackbox_cache.json", "w") as f:
             json.dump(response_tuple[2], f)
 
     return response_tuple
@@ -45,7 +49,7 @@ def prep_rounds(endpoint_responses: tuple) -> list:
     collected_round_list = transform_data.collect_round_batch(*endpoint_responses)
 
     if WRITE_TO_CACHE:
-        with open("data/processed/processed_rounds_cache.json", 'w') as f:
+        with open("data/processed/processed_rounds_cache.json", "w") as f:
             json.dump(collected_round_list, f)
 
     return collected_round_list
@@ -65,8 +69,9 @@ def read_raw_caches() -> tuple:
         playercount_raw = json.load(f)
     with open("data/raw/blackbox_cache.json") as f:
         blackbox_raw = json.load(f)
-    
+
     return (metadata_raw, playercount_raw, blackbox_raw)
+
 
 """
 ---------------------------
