@@ -86,17 +86,17 @@ class APIFetch:
 
 # --------------- do not cross, bad juju ahead ---------------
 
-    def concurrent_whole_round_batch(self, offset_end: int) -> Dict:
+    def concurrent_whole_round_batch(self, offset_start: int, offset_end: int) -> Dict:
         self._log.info("Starting concurrent get...")
 
         # TODO: pretty sure a generator expression is going to shit itself if we try to multithread it - have to test
-        round_metadata_list = self.fetch_roundlist_batch(offset_end)
+        round_metadata_list = self.fetch_roundlist_batch(0, offset_end)
 
         self._log.info("Got metadata list of len", len(round_metadata_list))
 
         round_id_list = [r["round_id"] for r in round_metadata_list]
-        test_pcount_urls = ["https://api.paradisestation.org/stats/playercounts/" + str(i) for i in round_id_list]
-        test_blackbox_urls = ["https://api.paradisestation.org/stats/blackbox/" + str(i) for i in round_id_list]
+        test_pcount_urls = ["/playercounts/" + str(i) for i in round_id_list]
+        test_blackbox_urls = ["/blackbox/" + str(i) for i in round_id_list]
 
         playercount_list, raw_blackbox_list = self.__concurrent_fetch_list(test_pcount_urls, test_blackbox_urls)
 

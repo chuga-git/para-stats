@@ -14,7 +14,7 @@ class SessionAdapter:
     def __init__(self, base_url: str = "https://api.paradisestation.org/stats", throttle_time = 6) -> None:
         self._log = logging.getLogger(__name__)
         self.base_url = base_url
-        self._session = requests.Session()
+        self._session = requests.Session() # FIXME: chuck this later
 
         self._rate_limit_min = 500
         self._rate_limit_hour_max = 3600

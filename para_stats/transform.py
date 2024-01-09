@@ -1,7 +1,6 @@
-from typing import List
+from typing import List, Dict
 import logging
 import json
-
 
 class TransformData:
     def __init__(self, round_list: List = None) -> None:
@@ -9,21 +8,80 @@ class TransformData:
         self._log = logging.getLogger(__name__)
         self.round_list = round_list
 
-    def clean_blackbox_response(self, blackbox_response: List) -> List:
+    def clean_blackbox_response(self, blackbox_response: List) -> Dict:
+        """
+        Takes a raw blackbox response and cleans it up for insertion into DB. Returns a DICTIONARY!
+
+        Output format:
+        ```
+        {
+            "key_name": 
+            {
+                data_1: value_1
+            },
+            "key_name2":
+            {
+                etc
+            }
+        }
+        ```
+
+        Input example format:
+        one round's list of metrics
+        ```
+        [
+            { # <--- entry = blackbox_response[i]
+                "key_name": "admin_secrets_fun_used",
+                "key_type": "tally",
+                "version": 1,
+                "raw_data": # this is a string
+                "{
+                    "data": 
+                    {
+                        "Roll The Dice": 1
+                    }
+                }" 
+            },
+            { # <--- entry = second loop
+                etc
+            },
+        ]
+        ```
+        """
+
+        cleaned_response = {}
+
         for entry in blackbox_response:
-            entry["data"] = json.loads(entry["raw_data"])["data"]
-            entry.pop("raw_data")
+            assert isinstance(entry, dict)
 
+            try:
+                raw_data = json.loads(entry["raw_data"])
+            except (json.JSONDecodeError, TypeError) as e:
+                self._log.exception("Exception while decoding raw_data", e, exc_info=1)
+                raise Exception(entry) from e
+            
+            # now it's deserialized and we should hopefully be able to index it directly
+            data = raw_data["data"]
+
+            # get rid of list index artifacts
+            if entry["key_type"] == "associative": 
+                if len(data.keys()) == 1:
+                    # get the only key in the dictionary as safely as possible
+                    data = data[next(iter(data))]
+                elif len(data.keys()) > 1:
+                    # turn the list indices into... an actual list
+                    data = list(data.values())
+                else:
+                    self._log.critical(f"Handled bad associative list with body {entry}")
+                    data = None
+            
             if entry["key_name"] == "RND Production List":
-                entry["data"] = entry["data"]["/list"]
+                # should always be "/list"... SHOULD!
+                data = data[next(iter(data))]
+            
+            cleaned_response[entry["key_name"]] = data
 
-            # as it turns out, there is ever going to be more than one element in the list
-            # if entry["key_name"] == "high_research_level":
-            #     # temp check to see if there's ever going to be more than one element in the list
-            #     assert len(entry["data"]) == 1
-            #     entry["data"] = next(iter(entry["data"]))
-
-        return blackbox_response
+        return cleaned_response
 
     def collect_round_batch(
         self, round_metadata_list: list, blackbox_raw_list: list, playercount_list: list

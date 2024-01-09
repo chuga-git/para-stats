@@ -6,7 +6,7 @@ from .transform import TransformData
 from .db import DatabaseLoader
 
 DEBUG = True
-
+WRITE_TO_CACHE = False
 
 def init_script(start_round_id: int, end_round_id: int):
     responses = fetch_rounds(start_round_id, end_round_id)
@@ -17,17 +17,18 @@ def init_script(start_round_id: int, end_round_id: int):
 
 def fetch_rounds(start_round_id: int, end_round_id: int) -> tuple:
     fetcher = APIFetch()
-    response_tuple = fetcher.concurrent_whole_round_batch(start_round_id, end_round_id)
+    response_tuple = fetcher.concurrent_whole_round_batch(38726) # FIXME: MAGIC DEBUG NUM
 
     # hmm yes give me several hundred megabytes of text please
-    with open("data/raw/metadata_cache.json", 'w') as f:
-        json.dump(response_tuple[0], f)
+    if WRITE_TO_CACHE:
+        with open("data/raw/metadata_cache.json", 'w') as f:
+            json.dump(response_tuple[0], f)
 
-    with open("data/raw/playercount_cache.json", 'w') as f:
-        json.dump(response_tuple[1], f)
+        with open("data/raw/playercount_cache.json", 'w') as f:
+            json.dump(response_tuple[1], f)
 
-    with open("data/raw/blackbox_cache.json", 'w') as f:
-        json.dump(response_tuple[2], f)
+        with open("data/raw/blackbox_cache.json", 'w') as f:
+            json.dump(response_tuple[2], f)
 
     return response_tuple
 
