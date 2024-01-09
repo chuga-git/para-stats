@@ -28,7 +28,7 @@ round_table = Table(
     Column("stats", JSONB)
 )
 
-round_table = Table(
+metadata_table = Table(
     Config.db_ods_metadata_table,
     db_metadata,
     Column("round_id", Integer, primary_key=True),

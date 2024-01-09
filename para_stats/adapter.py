@@ -57,7 +57,6 @@ class SessionAdapter:
         """DEBUG GET method for thread pooling testing. FIXME: Uses a passed down session for testing purposes. Should be able to keep this instance's session in theory."""
         full_url = self.base_url + endpoint
 
-        # we're too FAST for exception handling, baby
         response = self._session.get(full_url)
         try:
             response.raise_for_status()
@@ -67,12 +66,9 @@ class SessionAdapter:
             if response.status_code == 429:
                 self._log.exception("Caught rate limit exception:", e, exc_info=1)
                 raise RateLimitError from e
-            
             elif response.status_code == 404:
                 self._log.critical(f"Received 404 from endpoint {endpoint}")
-
                 raise RoundNotFoundError from e
-            
             else:
                 self._log.exception("Unhandled HTTP error occurred:", e, exc_info=1)
                 raise e

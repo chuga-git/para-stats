@@ -26,16 +26,27 @@ class APIFetch:
 
     def fetch_all_metadata(self) -> List:
         """Hacky debug method to scrape all round metadata pending refactor"""
-        def fetch_single_page(offset: int) -> List:
-            return self._adapter.get(f"/roundlist?offset={offset}")
+        metadata_list = []
 
-        result = fetch_single_page(0)
-        yield result
+        result = self._adapter.get(f"/roundlist?offset={0}")
+        metadata_list += result
 
         # response.json() != []
-        while result:
-            result = fetch_single_page(result[-1]["round_id"])
-            yield result
+        while result != []:
+            last_id = result[-1]["round_id"]
+            result = self._adapter.get(f"/roundlist?offset={last_id}")
+            metadata_list += result
+        
+        return metadata_list
+    
+    def ___fetch_all_metadata(self) -> List:
+        metadata_list = []
+
+        with requests.Session() as session:
+            for result in self.__page_all_metadata(session):
+                metadata_list += result
+        
+        return metadata_list
 
     def fetch_roundlist_batch(self, offset_start: int, offset_end: int) -> List:
         rounds_list = []

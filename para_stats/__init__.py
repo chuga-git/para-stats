@@ -18,7 +18,6 @@ def update_db_metadata():
     """TODO: this needs to build the whole thing once and then just look up against local storage"""
     fetcher = APIFetch()
     metadata_list = fetcher.fetch_all_metadata()
-
     db = DatabaseLoader(Config)
     upload = db.db_upload_metadata(metadata_list)
     print(upload)
