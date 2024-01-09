@@ -14,10 +14,18 @@ def init_script(start_round_id: int, end_round_id: int):
     upload = load_rounds(prepped_round_list)
     print(upload)
 
+def update_db_metadata():
+    """TODO: this needs to build the whole thing once and then just look up against local storage"""
+    fetcher = APIFetch()
+    metadata_list = fetcher.fetch_all_metadata()
+
+    db = DatabaseLoader(Config)
+    upload = db.db_upload_metadata(metadata_list)
+    print(upload)
 
 def fetch_rounds(start_round_id: int, end_round_id: int) -> tuple:
     fetcher = APIFetch()
-    response_tuple = fetcher.concurrent_whole_round_batch(38726) # FIXME: MAGIC DEBUG NUM
+    response_tuple = fetcher.concurrent_whole_round_batch(start_round_id, end_round_id)
 
     # hmm yes give me several hundred megabytes of text please
     if WRITE_TO_CACHE:
@@ -35,10 +43,11 @@ def fetch_rounds(start_round_id: int, end_round_id: int) -> tuple:
 
 def prep_rounds(endpoint_responses: tuple) -> list:
     transform_data = TransformData()
-    collected_round_list = transform_data.collect_round_batch(*endpoint_responses) # hopefully this preserves order
+    collected_round_list = transform_data.collect_round_batch(*endpoint_responses)
 
-    with open("data/processed/processed_rounds_cache.json", 'w') as f:
-        json.dump(collected_round_list, f)
+    if WRITE_TO_CACHE:
+        with open("data/processed/processed_rounds_cache.json", 'w') as f:
+            json.dump(collected_round_list, f)
 
     return collected_round_list
 

@@ -8,4 +8,5 @@ load_dotenv(path.join(basedir, ".env"))
 class Config:
     db_uri = environ.get("SQLALCHEMY_DB_URI")
     db_ods_schema = environ.get("SQLALCHEMY_ODS_SCHEMA")
-    db_ods_table = environ.get("SQLALCHEMY_ODS_TABLE")
+    db_ods_rounds_table = environ.get("SQLALCHEMY_ODS_ROUNDS_TABLE")
+    db_ods_metadata_Table = environ.get("SQLALCHEMY_ODS_METADATA_TABLE")

@@ -37,7 +37,7 @@ class SessionAdapter:
             elif response.status_code == 404:
                 self._log.critical(f"Received 404 from endpoint {endpoint}")
 
-                return None
+                raise RoundNotFoundError from e
             
             else:
                 self._log.exception("Unhandled HTTP error occurred:", e, exc_info=1)
@@ -45,10 +45,8 @@ class SessionAdapter:
 
         try:
             data_json = response.json()
-
         except (ValueError, TypeError, JSONDecodeError) as e:
             self._log.exception("Error in decoding JSON response:", e, exc_info=1)
-
             return None
 
         self._log.info(f"Successful GET/deserialize of endpoint\t{endpoint}\t{response.elapsed.total_seconds()} sec\tratelimit remaining: {int(response.headers['X-Rate-Limit-Remaining'])}")
@@ -61,9 +59,29 @@ class SessionAdapter:
 
         # we're too FAST for exception handling, baby
         response = self._session.get(full_url)
-        response.raise_for_status()
+        try:
+            response.raise_for_status()
 
-        data_json = response.json()
+        # TODO: PLEASE!!!!! learn how exceptions work!!!
+        except requests.exceptions.HTTPError as e:
+            if response.status_code == 429:
+                self._log.exception("Caught rate limit exception:", e, exc_info=1)
+                raise RateLimitError from e
+            
+            elif response.status_code == 404:
+                self._log.critical(f"Received 404 from endpoint {endpoint}")
+
+                raise RoundNotFoundError from e
+            
+            else:
+                self._log.exception("Unhandled HTTP error occurred:", e, exc_info=1)
+                raise e
+
+        try:
+            data_json = response.json()
+        except (ValueError, TypeError, JSONDecodeError) as e:
+            self._log.exception("Error in decoding JSON response:", e, exc_info=1)
+            return None
 
         self._log.info(f"Successful GET/deserialize of endpoint\t{endpoint}\t{response.elapsed.total_seconds()} sec\tratelimit remaining: {int(response.headers['X-Rate-Limit-Remaining'])}")
         time.sleep(self._throttle_time)

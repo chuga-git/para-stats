@@ -50,10 +50,16 @@ class TransformData:
         ```
         """
 
+        if blackbox_response is None:
+            return None
+
         cleaned_response = {}
 
         for entry in blackbox_response:
-            assert isinstance(entry, dict)
+            if not isinstance(entry, dict):
+                print(type(entry))
+                print(entry)
+                raise TypeError("Shit fucked up with entry")
 
             try:
                 raw_data = json.loads(entry["raw_data"])
@@ -85,10 +91,10 @@ class TransformData:
             cleaned_response[entry["key_name"]] = data
 
         return cleaned_response
-
+    
     def collect_round_batch(
-        self, round_metadata_list: list, blackbox_raw_list: list, playercount_list: list
-    ) -> list:
+        self, round_metadata_list: List, playercount_list: List, blackbox_raw_list: List, 
+    ) -> List:
         cleaned_blackbox_list = []
 
         # this is much slower than the list comprehension but it needs to be baby proofed

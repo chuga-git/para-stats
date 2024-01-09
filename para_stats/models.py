@@ -8,11 +8,11 @@ https://blog.codinghorror.com/object-relational-mapping-is-the-vietnam-of-comput
 """
 
 # fuck
-meta = MetaData(schema=Config.db_ods_schema)
+db_metadata = MetaData(schema=Config.db_ods_schema)
 
 round_table = Table(
-    Config.db_ods_table,
-    meta,
+    Config.db_ods_rounds_table,
+    db_metadata,
     Column("round_id", Integer, primary_key=True),
     Column("init_datetime", Text),
     Column("start_datetime", Text),
@@ -27,6 +27,40 @@ round_table = Table(
     Column("playercounts", JSONB),
     Column("stats", JSONB)
 )
+
+round_table = Table(
+    Config.db_ods_metadata_table,
+    db_metadata,
+    Column("round_id", Integer, primary_key=True),
+    Column("init_datetime", Text),
+    Column("start_datetime", Text),
+    Column("shutdown_datetime", Text),
+    Column("end_datetime", Text),
+    Column("commit_hash", Text),
+    Column("game_mode", Text),
+    Column("game_mode_result", Text),
+    Column("end_state", Text),
+    Column("map_name", Text),
+    Column("server_id", Text),
+)
+
+# this should ideally be the parent of round_table with a declarative base, but if anything gets touched on the DB side it's going to explode
+# round_metadata_table = Table(
+#     Config.db_ods_table,
+#     db_metadata,
+#     Column("round_id", Integer, primary_key=True),
+#     Column("init_datetime", Text),
+#     Column("start_datetime", Text),
+#     Column("shutdown_datetime", Text),
+#     Column("end_datetime", Text),
+#     Column("commit_hash", Text),
+#     Column("game_mode", Text),
+#     Column("game_mode_result", Text),
+#     Column("end_state", Text),
+#     Column("map_name", Text),
+#     Column("server_id", Text),
+# )
+
 
 
 # class Round(Base):
