@@ -11,11 +11,14 @@ WRITE_TO_CACHE = False
 
 def init_script():
     # TODO: get list of rounds that need filling from metadata table and then query them in batches.
-    responses = fetch_rounds(start_round_id, end_round_id)
-    prepped_round_list = prep_rounds(responses)
-    upload = load_rounds(prepped_round_list)
-    print(upload)
-
+    #responses = fetch_rounds(start_round_id, end_round_id)
+    #prepped_round_list = prep_rounds(responses)
+    #upload = load_rounds(prepped_round_list)
+    #print(upload)
+    db = DatabaseLoader(Config)
+    r = db.db_fetch_round_ids()
+    print(len(r))
+    print(r[:100])
 
 def update_db_metadata():
     """TODO: this needs to build the whole thing once and then just look up against local storage"""

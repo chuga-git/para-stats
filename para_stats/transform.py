@@ -1,15 +1,14 @@
-from typing import List, Dict
 import logging
 import json
 
 
 class TransformData:
-    def __init__(self, round_list: List = None) -> None:
+    def __init__(self, round_list: list = None) -> None:
         # this whole situation is fucked
         self._log = logging.getLogger(__name__)
         self.round_list = round_list
 
-    def clean_blackbox_response(self, blackbox_response: List) -> Dict:
+    def clean_blackbox_response(self, blackbox_response: list) -> dict:
         """
         Takes a raw blackbox response and cleans it up for insertion into DB. Returns a DICTIONARY!
 
@@ -84,7 +83,7 @@ class TransformData:
                     )
                     data = None
 
-            if entry["key_name"] == "RND Production List":
+            if entry["key_name"] == "RND Production list":
                 # should always be "/list"... SHOULD!
                 data = data[next(iter(data))]
 
@@ -94,10 +93,10 @@ class TransformData:
 
     def collect_round_batch(
         self,
-        round_metadata_list: List,
-        playercount_list: List,
-        blackbox_raw_list: List,
-    ) -> List:
+        round_metadata_list: list,
+        playercount_list: list,
+        blackbox_raw_list: list,
+    ) -> list:
         cleaned_blackbox_list = []
 
         # this is much slower than the list comprehension but it needs to be baby proofed

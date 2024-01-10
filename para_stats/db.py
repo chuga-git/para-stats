@@ -1,5 +1,5 @@
 import logging
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 from sqlalchemy.dialects.postgresql import insert
 from .models import round_table, metadata_table, db_metadata
@@ -70,3 +70,34 @@ class DatabaseLoader:
     def db_upload_metadata(self, metadata_list: list):
         result = self.__upsert_to_database(metadata_list, metadata_table)
         return result
+
+    def db_fetch_round_ids(self) -> list[int]:
+        """Gets ALL round_ids from db metadata table, sorted high to low"""
+        with Session(self.engine) as session:
+            stmt = (
+                select(metadata_table.c["round_id"]).order_by(
+                    metadata_table.c["round_id"].desc()
+                )
+            )
+
+            result = session.execute(stmt)
+            round_id_list = result.scalars().all()
+        
+        return round_id_list
+
+    def __db_find_rounds_to_query(self):
+        pass
+
+    def __db_fetch_most_recent_round(self) -> int:
+        """Gets most recent round_id from metadata table"""
+        with Session(self.engine) as session:
+            stmt = (
+                select(metadata_table.c["round_id"]).order_by(
+                    metadata_table.c["round_id"].desc()
+                )
+            ).limit(1)
+
+            result = session.execute(stmt)
+            round_id = result.fetchone()[0]
+
+        return round_id
