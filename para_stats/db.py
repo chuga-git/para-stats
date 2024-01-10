@@ -19,7 +19,7 @@ class DatabaseLoader:
         """
         Upserts values to specified table. This needs chunking for some UNGODLY REASON!!!!!!!!!!!!!!!!!!
 
-        TODO: needs error handling and to actually return the number of rows inserted :)
+        TODO: needs error handling :)
         """
         self._log.info(
             f"Starting upsert against {target_table} with list of len {len(data_list)}"
@@ -30,6 +30,7 @@ class DatabaseLoader:
         self.db_metadata.create_all(bind=self.engine, tables=[target_table])
 
         with Session(self.engine) as session:
+            inserted_rowcount = 0
             for i in range(num_chunks):
                 start_i = i * self.CHUNKSIZE
                 end_i = min((i + 1) * self.CHUNKSIZE, len(data_list))
@@ -48,17 +49,21 @@ class DatabaseLoader:
                 }
 
                 update_stmt = insert_stmt.on_conflict_do_update(
-                    index_elements=["round_id"], set_=update_cols
+                    index_elements=["round_id"], 
+                    set_=update_cols,
                 )
 
-                session.execute(update_stmt)
-                session.commit()
+                result = session.execute(update_stmt)
 
+                inserted_rowcount += result.rowcount
+
+                session.commit()
+                
                 self._log.info(
                     f"Chunk of len {len(chunk_iter)} successfully committed, {num_chunks - i} to go"
                 )
 
-        result_statement = f"Inserted {len(data_list)} rows into {target_table}"
+        result_statement = f"Inserted {inserted_rowcount} rows into {target_table}"
 
         return result_statement
 
@@ -72,6 +77,9 @@ class DatabaseLoader:
 
     def db_fetch_round_ids(self) -> list[int]:
         """Gets ALL round_ids from db metadata table, sorted high to low"""
+
+        self._log.info("Starting fetch of all round_ids from metadata table")
+
         with Session(self.engine) as session:
             stmt = (
                 select(metadata_table.c["round_id"]).order_by(
@@ -80,8 +88,11 @@ class DatabaseLoader:
             )
 
             result = session.execute(stmt)
+            
+            self._log.info(f"Pulled {result.rowcount} rows from metadata round_id column")
+            
             round_id_list = result.scalars().all()
-        
+
         return round_id_list
 
     def db_fetch_metadata_difference(self) -> list[dict]:
@@ -98,6 +109,8 @@ class DatabaseLoader:
             ```
         """
 
+        self._log.info("Pulling metadata for difference comparison")
+
         with Session(self.engine) as session:
             exists_stmt = (
                 select(metadata_table.c["round_id"])
@@ -110,8 +123,10 @@ class DatabaseLoader:
 
             # TODO: needs to return the Result rowcount but this is a pain in the ass to get working as-is
             result = session.execute(stmt).all()
+
+            self._log.info(f"Resulting .rowcount: {result.rowcount}")
             
-            # dict constructor SHOULD(!) play nice with the dict constructor since it already implements _asdict() (according to the google mailing list of course)
+            # dict constructor SHOULD(!) play nice with the snowflake named tuple since it already implements _asdict() (according to the google mailing list of course)
             if not result:
                 self._log.warn("Difference query returned empty list.")
                 return None
@@ -132,6 +147,9 @@ class DatabaseLoader:
             ).limit(1)
 
             result = session.execute(stmt)
+            # FIXME: this is probably out of date syntax but i can't tell from the way the docs are laid out :)
             round_id = result.fetchone()[0]
+
+            self._log.info(f"Successfully pulled most recent round_id from database with value: {round_id}")
 
         return round_id

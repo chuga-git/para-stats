@@ -47,7 +47,6 @@ class APIFetch:
             result = fetch_single_page(result[-1]["round_id"])
             yield result
 
-
     def fetch_roundlist_to_offset(self, offset_end: int) -> list:
         """Fetches list of rounds up to a specified offset"""
         metadata_list = []
@@ -76,7 +75,6 @@ class APIFetch:
     def fetch_most_recent_round_id(self) -> int:
         """Gets the most recently completed round from the API"""
         return self._get("/roundlist?offset=0")[0]["round_id"]
-
 
     def fetch_round_data_bulk(self, round_id_list: list[int]) -> tuple:
         """Fetches playercount and blackbox data from provided round id list.
@@ -114,7 +112,7 @@ class APIFetch:
             list[list]: list of responses in the order provided in `endpoint_list`. 
         """
 
-        # build a list of endpoints from each endpoint
+        # build a list of endpoints/id from each base endpoint
         full_endpoint_list = [
             [endpoint + str(rnd_id) for rnd_id in round_id_list]
             for endpoint in endpoint_list
