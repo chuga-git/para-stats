@@ -3,10 +3,9 @@ import json
 
 
 class TransformData:
-    def __init__(self, round_list: list = None) -> None:
+    def __init__(self) -> None:
         # this whole situation is fucked
         self._log = logging.getLogger(__name__)
-        self.round_list = round_list
 
     def clean_blackbox_response(self, blackbox_response: list) -> dict:
         """
@@ -95,12 +94,12 @@ class TransformData:
         self,
         round_metadata_list: list,
         playercount_list: list,
-        blackbox_raw_list: list,
+        raw_blackbox_list: list,
     ) -> list:
         cleaned_blackbox_list = []
 
         # this is much slower than the list comprehension but it needs to be baby proofed
-        for raw_response in blackbox_raw_list:
+        for raw_response in raw_blackbox_list:
             cleaned_response = self.clean_blackbox_response(raw_response)
             cleaned_blackbox_list.append(cleaned_response)
 

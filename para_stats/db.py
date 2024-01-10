@@ -6,12 +6,12 @@ from .models import round_table, metadata_table, db_metadata
 
 
 class DatabaseLoader:
-    def __init__(self, config) -> None:
+    def __init__(self, config, chunksize: int = 1000) -> None:
         self._log = logging.getLogger(__name__)
         self.db_uri = config.db_uri
         # self.db_ods_schema = config.db_ods_schema
         # self.ods_table = config.db_ods_table
-
+        self.CHUNKSIZE = chunksize
         self.engine = create_engine(self.db_uri, echo=False)
         self.db_metadata = db_metadata
 
@@ -24,16 +24,15 @@ class DatabaseLoader:
         self._log.info(
             f"Starting upsert against {target_table} with list of len {len(data_list)}"
         )
-        # FUCK!!!!
-        CHUNKSIZE = 1000
-        chunks = (len(data_list) // CHUNKSIZE) + 1
+
+        num_chunks = (len(data_list) // self.CHUNKSIZE) + 1
 
         self.db_metadata.create_all(bind=self.engine, tables=[target_table])
 
         with Session(self.engine) as session:
-            for i in range(chunks):
-                start_i = i * CHUNKSIZE
-                end_i = min((i + 1) * CHUNKSIZE, len(data_list))
+            for i in range(num_chunks):
+                start_i = i * self.CHUNKSIZE
+                end_i = min((i + 1) * self.CHUNKSIZE, len(data_list))
 
                 if start_i >= end_i:
                     break
@@ -56,18 +55,18 @@ class DatabaseLoader:
                 session.commit()
 
                 self._log.info(
-                    f"Chunk of len {len(chunk_iter)} successfully committed, {chunks - i} to go"
+                    f"Chunk of len {len(chunk_iter)} successfully committed, {num_chunks - i} to go"
                 )
 
         result_statement = f"Inserted {len(data_list)} rows into {target_table}"
 
         return result_statement
 
-    def db_upload_rounds(self, round_list: list):
+    def db_upload_rounds(self, round_list: list) -> str:
         result = self.__upsert_to_database(round_list, round_table)
         return result
 
-    def db_upload_metadata(self, metadata_list: list):
+    def db_upload_metadata(self, metadata_list: list) -> str:
         result = self.__upsert_to_database(metadata_list, metadata_table)
         return result
 
@@ -85,10 +84,45 @@ class DatabaseLoader:
         
         return round_id_list
 
-    def __db_find_rounds_to_query(self):
-        pass
+    def db_fetch_metadata_difference(self) -> list[dict]:
+        """
+        Returns metadata rows (set difference \) that do not exist in the collected round data table. 
 
-    def __db_fetch_most_recent_round(self) -> int:
+        SQL statement:
+            ```
+            SELECT *
+            FROM ods.metadata
+            WHERE NOT EXISTS
+                (SELECT * from ods.rounds 
+            WHERE ods.metadata.round_id = ods.rounds.round_id)
+            ```
+        """
+
+        with Session(self.engine) as session:
+            exists_stmt = (
+                select(metadata_table.c["round_id"])
+                .where(round_table.c["round_id"] == metadata_table.c["round_id"])
+            ).exists()
+
+            stmt = (
+                select(metadata_table).where(~exists_stmt) # binary negation for NOT EXISTS
+            )
+
+            # TODO: needs to return the Result rowcount but this is a pain in the ass to get working as-is
+            result = session.execute(stmt).all()
+            
+            # dict constructor SHOULD(!) play nice with the dict constructor since it already implements _asdict() (according to the google mailing list of course)
+            if not result:
+                self._log.warn("Difference query returned empty list.")
+                return None
+            
+            metadata_list = [dict(row) for row in result.mappings()]
+
+        self._log.info(f"Successfully queried metadata-difference list of len {len(metadata_list)}")
+
+        return metadata_list
+
+    def db_fetch_most_recent_round_id(self) -> int:
         """Gets most recent round_id from metadata table"""
         with Session(self.engine) as session:
             stmt = (
