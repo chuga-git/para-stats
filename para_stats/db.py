@@ -1,5 +1,5 @@
 import logging
-from sqlalchemy import create_engine, select
+from sqlalchemy import create_engine, select, inspect
 from sqlalchemy.orm import Session
 from sqlalchemy.dialects.postgresql import insert
 from .models import round_table, metadata_table, db_metadata
@@ -9,15 +9,17 @@ class DatabaseLoader:
     def __init__(self, config, chunksize: int = 1000) -> None:
         self._log = logging.getLogger(__name__)
         self.db_uri = config.db_uri
-        # self.db_ods_schema = config.db_ods_schema
+        self.db_ods_schema = config.db_ods_schema
         # self.ods_table = config.db_ods_table
         self.CHUNKSIZE = chunksize
         self.engine = create_engine(self.db_uri, echo=False)
         self.db_metadata = db_metadata
+        # FIXME: shouldn't have to specify the tables list here since they're already registed to the same metadata object that we're importing from the other file
+        self.db_metadata.create_all(bind=self.engine, tables=[round_table, metadata_table])
 
     def __upsert_to_database(self, data_list: list, target_table) -> str:
         """
-        Upserts values to specified table. This needs chunking for some UNGODLY REASON!!!!!!!!!!!!!!!!!!
+        Upserts values to specified table.
 
         TODO: needs error handling :)
         """
@@ -26,8 +28,6 @@ class DatabaseLoader:
         )
 
         num_chunks = (len(data_list) // self.CHUNKSIZE) + 1
-
-        self.db_metadata.create_all(bind=self.engine, tables=[target_table])
 
         with Session(self.engine) as session:
             inserted_rowcount = 0
@@ -39,6 +39,7 @@ class DatabaseLoader:
                     break
 
                 chunk_iter = data_list[start_i:end_i]
+                chunk_iter_len = len(chunk_iter)
                 insert_stmt = insert(target_table).values(chunk_iter)
 
                 # ideally, we get the primary key dynamically
@@ -53,14 +54,14 @@ class DatabaseLoader:
                     set_=update_cols,
                 )
 
-                result = session.execute(update_stmt)
+                session.execute(update_stmt)
 
-                inserted_rowcount += result.rowcount
+                inserted_rowcount += chunk_iter_len
 
                 session.commit()
                 
                 self._log.info(
-                    f"Chunk of len {len(chunk_iter)} successfully committed, {num_chunks - i} to go"
+                    f"Chunk of len {chunk_iter_len} successfully committed, {num_chunks - i} to go"
                 )
 
         result_statement = f"Inserted {inserted_rowcount} rows into {target_table}"
@@ -89,7 +90,6 @@ class DatabaseLoader:
 
             result = session.execute(stmt)
             
-            self._log.info(f"Pulled {result.rowcount} rows from metadata round_id column")
             
             round_id_list = result.scalars().all()
 
@@ -121,11 +121,8 @@ class DatabaseLoader:
                 select(metadata_table).where(~exists_stmt) # binary negation for NOT EXISTS
             )
 
-            # TODO: needs to return the Result rowcount but this is a pain in the ass to get working as-is
-            result = session.execute(stmt).all()
+            result = session.execute(stmt)
 
-            self._log.info(f"Resulting .rowcount: {result.rowcount}")
-            
             # dict constructor SHOULD(!) play nice with the snowflake named tuple since it already implements _asdict() (according to the google mailing list of course)
             if not result:
                 self._log.warn("Difference query returned empty list.")

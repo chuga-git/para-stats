@@ -10,17 +10,13 @@ class APIFetch:
     def __init__(
         self,
         base_url: str = "https://api.paradisestation.org/stats",
-        throttle_time: int = 7,
-        should_throttle: bool = True,
-        max_connections: int = 2,
+        max_connections: int = 10,
     ) -> None:
         """REST adapter for connection pooling
 
         Args:
             base_url (str, optional): Endpoint to query, should not need to change from default. Defaults to "https://api.paradisestation.org/stats".
-            throttle_time (int, optional): Rate to throttle requests. To keep under 500/min limit, it should not go above 8 (8.33/sec max). Defaults to 7.
-            should_throttle (bool, optional): Whether or not to throttle requests for this instance. Defaults to True.
-            max_connections(int, optional): Number of threads to use with concurrent requests.
+            max_connections(int, optional): Number of threads to use with concurrent requests. Defaults to 10, which is the default number of simultaneous threads provided by the urllib3 connection pool.
         """
 
         self._log = logging.getLogger(__name__)
@@ -29,16 +25,19 @@ class APIFetch:
         # TODO: these are useless now but need to be used later for intelligent backing-off
         self._rate_limit_min = 500
         self._rate_limit_hour_max = 3600
-        self.CONNECTIONS = 2
-        self._throttle_time = 1 / throttle_time  # TODO: make this a config.ini var
-        self.should_throttle = should_throttle
+        self.CONNECTIONS = max_connections
         self._session = requests.Session()
+
+        self.blackbox_endpoint = '/blackbox/'
+        self.playercounts_endpoint = '/playercounts/'
+        self.roundlist_endpoint = '/roundlist?offset=' # TODO: this needs to get passed as a param
+        self.metadata_endpoint = '/metadata/'
 
     def __fetch_roundlist_paged(self, offset_start: int, offset_end: int) -> list:
         """Generator for paginated retrieval of roundlist endpoint. Will return overlapping data."""
 
         def fetch_single_page(offset: int) -> list:
-            return self._get(f"/roundlist?offset={offset}")
+            return self._get(self.roundlist_endpoint + str(offset))
 
         result = fetch_single_page(offset_start)
         yield result
@@ -61,13 +60,13 @@ class APIFetch:
         """Hacky debug method to scrape all round metadata"""
         metadata_list = []
         
-        result = self._get(f"/roundlist?offset={0}")
+        result = self._get(self.roundlist_endpoint + str(0))
         metadata_list += result
 
         # response.json() != []
         while result != []:
             last_id = result[-1]["round_id"]
-            result = self._get(f"/roundlist?offset={last_id}")
+            result = self._get(self.roundlist_endpoint + str(last_id))
             metadata_list += result
 
         return metadata_list
@@ -87,10 +86,9 @@ class APIFetch:
         """
         self._log.info("Starting concurrent get...")
 
-        # FIXME: this tuple unpack is SO unsafe and is going to lead to misery
         playercount_list, raw_blackbox_list = self.__fetch_endpoints(
             round_id_list,
-            ['/playercount/', '/blackbox/']
+            [self.playercounts_endpoint, self.blackbox_endpoint]
         )
 
         self._log.info(
@@ -120,7 +118,7 @@ class APIFetch:
 
         # iteratively map the iterable of iterables
         # this is such a bad idea in both conception and execution
-        with ThreadPoolExecutor(max_workers=self.CONNECTIONS) as pool:
+        with ThreadPoolExecutor(max_workers=10) as pool:
             responses = [
                 list(pool.map(self._get, endpoint_iter))
                 for endpoint_iter in full_endpoint_list
@@ -172,9 +170,5 @@ class APIFetch:
         self._log.info(
             f"Successful GET/deserialize of endpoint\t{endpoint}\t{response.elapsed.total_seconds()} sec\tratelimit remaining: {int(response.headers['X-Rate-Limit-Remaining'])}"
         )
-
-        # this kinda sucks
-        if self.should_throttle:
-            time.sleep(self._throttle_time)
 
         return data_json

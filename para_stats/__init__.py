@@ -26,7 +26,7 @@ class ETLInterface:
         self._log = logging.getLogger(__name__)
         self._fetcher = APIFetch()
         self._transformer = TransformData()
-        self._db = DatabaseLoader(Config)
+        self._db = DatabaseLoader(Config) # note: this should automatically create the tables from the schemas if they don't exist
 
     def update_metadata(self):
         new_round_id = self._fetcher.fetch_most_recent_round_id()
@@ -39,7 +39,7 @@ class ETLInterface:
         else:
             new_metadata_list = []
 
-        self._log.info(f"Found batch of {len(new_metadata_list)} rounds to update.")
+        self._log.info(f"Found {len(new_metadata_list)} metadata entries to update.")
 
         return new_metadata_list
 
@@ -52,8 +52,16 @@ class ETLInterface:
         if metadata_diff_list is None:
             return None
 
-        round_id_list = [entry["round_id"] for entry in metadata_diff_list]
+        if len(metadata_diff_list) >= 500:
+            print(f"WARNING: {len(metadata_diff_list) * 2} rounds need to be queried. This could break!")
+            debug_inpt = input("Continue? (Y/N) > ")
 
+            if debug_inpt != 'Y':
+                raise SystemExit("User requested termination")
+
+        # TODO: find a way to test whether or not these lists have the required dimensions (can't instance check generic aliases...)
+        round_id_list = [entry["round_id"] for entry in metadata_diff_list]
+        
         # get the missing data
         playercount_list, raw_blackbox_list = self._fetcher.fetch_round_data_bulk(
             round_id_list
@@ -99,7 +107,7 @@ class ETLInterface:
 
     def load_rounds(self, collected_round_list: list) -> str:
         """Uploads collected round list to the database"""
-        result = self.db.db_upload_rounds(collected_round_list)
+        result = self._db.db_upload_rounds(collected_round_list)
 
         return result
 
@@ -110,11 +118,13 @@ def init_script():
     print("Checking for new rounds...")
 
     # check if we need to update the master metadata list
-    metadata_to_update = interface.update_metadata()
+    metadata_to_update = False #interface.update_metadata()
 
     # send it to the database
     if metadata_to_update:
         print(interface.load_metadata(metadata_to_update))
+    else:
+        print("Database metadata table is already up to date!")
 
     print("Updating round playercount and blackbox data...")
 
@@ -124,7 +134,7 @@ def init_script():
     if round_data_to_upload is None:
         print("Nothing to update!")
         # :)
-        SystemExit(0)
+        raise SystemExit("Run completed")
 
     print(f"Collected {len(round_data_to_upload)} rounds to update...")
 
