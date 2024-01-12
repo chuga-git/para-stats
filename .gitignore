@@ -99,3 +99,4 @@ ca-certificate.crt
 *.json
 
 *.txt
+reports/vis_scratchpad.py
