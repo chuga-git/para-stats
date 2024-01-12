@@ -22,9 +22,9 @@ def read_raw_caches() -> tuple:
 
 
 class ETLInterface:
-    def __init__(self) -> None:
+    def __init__(self, url:str = 'https://api.paradisestation.org/stats') -> None:
         self._log = logging.getLogger(__name__)
-        self._fetcher = APIFetch()
+        self._fetcher = APIFetch(url)
         self._transformer = TransformData()
         self._db = DatabaseLoader(Config) # note: this should automatically create the tables from the schemas if they don't exist
 
@@ -59,7 +59,6 @@ class ETLInterface:
             if debug_inpt != 'Y':
                 raise SystemExit("User requested termination")
 
-        # TODO: find a way to test whether or not these lists have the required dimensions (can't instance check generic aliases...)
         round_id_list = [entry["round_id"] for entry in metadata_diff_list]
         
         # get the missing data
@@ -118,7 +117,7 @@ def init_script():
     print("Checking for new rounds...")
 
     # check if we need to update the master metadata list
-    metadata_to_update = False #interface.update_metadata()
+    metadata_to_update = interface.update_metadata()
 
     # send it to the database
     if metadata_to_update:

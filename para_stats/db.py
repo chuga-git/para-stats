@@ -98,15 +98,6 @@ class DatabaseLoader:
     def db_fetch_metadata_difference(self) -> list[dict]:
         """
         Returns metadata rows (set difference \) that do not exist in the collected round data table. 
-
-        SQL statement:
-            ```
-            SELECT *
-            FROM ods.metadata
-            WHERE NOT EXISTS
-                (SELECT * from ods.rounds 
-            WHERE ods.metadata.round_id = ods.rounds.round_id)
-            ```
         """
 
         self._log.info("Pulling metadata for difference comparison")

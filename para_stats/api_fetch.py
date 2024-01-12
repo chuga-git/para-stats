@@ -21,10 +21,7 @@ class APIFetch:
 
         self._log = logging.getLogger(__name__)
         self.base_url = base_url
-
-        # TODO: these are useless now but need to be used later for intelligent backing-off
-        self._rate_limit_min = 500
-        self._rate_limit_hour_max = 3600
+        
         self.CONNECTIONS = max_connections
         self._session = requests.Session()
 
@@ -118,7 +115,7 @@ class APIFetch:
 
         # iteratively map the iterable of iterables
         # this is such a bad idea in both conception and execution
-        with ThreadPoolExecutor(max_workers=10) as pool:
+        with ThreadPoolExecutor(max_workers=self.CONNECTIONS) as pool:
             responses = [
                 list(pool.map(self._get, endpoint_iter))
                 for endpoint_iter in full_endpoint_list
