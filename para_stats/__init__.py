@@ -1,25 +1,8 @@
-import json
 import logging
 from config import Config
 from .api_fetch import APIFetch
 from .transform import TransformData
 from .db import DatabaseLoader
-
-
-# TODO: figure out what to do with temp caching
-WRITE_TO_CACHE = False
-
-
-def read_raw_caches() -> tuple:
-    with open("data/raw/metadata_cache.json") as f:
-        metadata_raw = json.load(f)
-    with open("data/raw/playercount_cache.json") as f:
-        playercount_raw = json.load(f)
-    with open("data/raw/blackbox_cache.json") as f:
-        blackbox_raw = json.load(f)
-
-    return (metadata_raw, playercount_raw, blackbox_raw)
-
 
 class ETLInterface:
     def __init__(self, url:str = 'https://api.paradisestation.org/stats') -> None:
@@ -30,9 +13,7 @@ class ETLInterface:
 
     def update_metadata(self):
         new_round_id = self._fetcher.fetch_most_recent_round_id()
-        old_round_id = (
-            self._db.db_fetch_most_recent_round_id()
-        )  # TODO: clean up these ugly ass method names :)
+        old_round_id = self._db.db_fetch_most_recent_round_id()
 
         if new_round_id > old_round_id:
             new_metadata_list = self._fetcher.fetch_roundlist_to_offset(old_round_id)
@@ -48,7 +29,6 @@ class ETLInterface:
         # get the metadata that doesn't have a partner in the rounds table
         metadata_diff_list = self._db.db_fetch_metadata_difference()
 
-        # BAD
         if metadata_diff_list is None:
             return None
 
@@ -62,21 +42,13 @@ class ETLInterface:
         round_id_list = [entry["round_id"] for entry in metadata_diff_list]
         
         # get the missing data
-        playercount_list, raw_blackbox_list = self._fetcher.fetch_round_data_bulk(
-            round_id_list
-        )
-
-        # hmm yes give me several hundred megabytes of text please
-        if WRITE_TO_CACHE:
-            with open("data/raw/playercount_cache.json", "w") as f:
-                json.dump(playercount_list, f)
-
-            with open("data/raw/blackbox_cache.json", "w") as f:
-                json.dump(raw_blackbox_list, f)
+        playercount_list, raw_blackbox_list = self._fetcher.fetch_round_data_bulk(round_id_list)
 
         # collect them into a list for upload
         collected_round_list = self.prep_rounds(
-            metadata_diff_list, playercount_list, raw_blackbox_list
+            metadata_diff_list, 
+            playercount_list, 
+            raw_blackbox_list,
         )
 
         return collected_round_list
@@ -86,13 +58,12 @@ class ETLInterface:
     ) -> list:
         """Cleans and returns list of rounds ready for upload"""
         transform_data = TransformData()
+        
         collected_round_list = transform_data.collect_round_batch(
-            metadata_list, playercount_list, raw_blackbox_list
+            metadata_list, 
+            playercount_list, 
+            raw_blackbox_list,
         )
-
-        if WRITE_TO_CACHE:
-            with open("data/processed/processed_rounds_cache.json", "w") as f:
-                json.dump(collected_round_list, f)
 
         return collected_round_list
 
@@ -132,7 +103,6 @@ def init_script():
 
     if round_data_to_upload is None:
         print("Nothing to update!")
-        # :)
         raise SystemExit("Run completed")
 
     print(f"Collected {len(round_data_to_upload)} rounds to update...")

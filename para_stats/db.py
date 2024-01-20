@@ -1,5 +1,5 @@
 import logging
-from sqlalchemy import create_engine, select, inspect
+from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 from sqlalchemy.dialects.postgresql import insert
 from .models import round_table, metadata_table, db_metadata
@@ -7,21 +7,27 @@ from .models import round_table, metadata_table, db_metadata
 
 class DatabaseLoader:
     def __init__(self, config, chunksize: int = 1000) -> None:
+        """Handler for interacting with database.
+
+        Args:
+            config (Config): Pulls target table, schema, and DB URI from set env vars.
+            chunksize (int, optional): Number of rows to push to database at a time. Larger batches will hit the Postgre upload limit and be generally error-prone and unperformant. Defaults to 1000.
+        """
         self._log = logging.getLogger(__name__)
         self.db_uri = config.db_uri
         self.db_ods_schema = config.db_ods_schema
-        # self.ods_table = config.db_ods_table
+
         self.CHUNKSIZE = chunksize
         self.engine = create_engine(self.db_uri, echo=False)
         self.db_metadata = db_metadata
+
         # FIXME: shouldn't have to specify the tables list here since they're already registed to the same metadata object that we're importing from the other file
         self.db_metadata.create_all(bind=self.engine, tables=[round_table, metadata_table])
 
     def __upsert_to_database(self, data_list: list, target_table) -> str:
         """
-        Upserts values to specified table.
+        Upserts values to specified table. Chunking algorithm partially derived from the Pandas to_sql() implementation.
 
-        TODO: needs error handling :)
         """
         self._log.info(
             f"Starting upsert against {target_table} with list of len {len(data_list)}"
@@ -69,15 +75,17 @@ class DatabaseLoader:
         return result_statement
 
     def db_upload_rounds(self, round_list: list) -> str:
+        """Upserts compiled round data into db rounds table"""
         result = self.__upsert_to_database(round_list, round_table)
         return result
 
     def db_upload_metadata(self, metadata_list: list) -> str:
+        """Upserts compiled metadata into db metadata table"""
         result = self.__upsert_to_database(metadata_list, metadata_table)
         return result
 
     def db_fetch_round_ids(self) -> list[int]:
-        """Gets ALL round_ids from db metadata table, sorted high to low"""
+        """Pulls all round_id entries from db metadata table, sorted high to low"""
 
         self._log.info("Starting fetch of all round_ids from metadata table")
 
@@ -97,7 +105,7 @@ class DatabaseLoader:
 
     def db_fetch_metadata_difference(self) -> list[dict]:
         """
-        Returns metadata rows (set difference \) that do not exist in the collected round data table. 
+        Returns metadata rows that do not exist in the collected round data table. 
         """
 
         self._log.info("Pulling metadata for difference comparison")
@@ -109,12 +117,13 @@ class DatabaseLoader:
             ).exists()
 
             stmt = (
-                select(metadata_table).where(~exists_stmt) # binary negation for NOT EXISTS
+                # binary negation for NOT EXISTS
+                select(metadata_table).where(~exists_stmt)
             )
 
             result = session.execute(stmt)
 
-            # dict constructor SHOULD(!) play nice with the snowflake named tuple since it already implements _asdict() (according to the google mailing list of course)
+            # dict constructor SHOULD(!) play nice with the snowflake named tuple since it already implements _asdict()
             if not result:
                 self._log.warn("Difference query returned empty list.")
                 return None
@@ -135,7 +144,7 @@ class DatabaseLoader:
             ).limit(1)
 
             result = session.execute(stmt)
-            # FIXME: this is probably out of date syntax but i can't tell from the way the docs are laid out :)
+            
             round_id = result.fetchone()[0]
 
             self._log.info(f"Successfully pulled most recent round_id from database with value: {round_id}")

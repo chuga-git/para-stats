@@ -1,6 +1,5 @@
 import logging
 import requests
-import time
 from json import JSONDecodeError
 from concurrent.futures import ThreadPoolExecutor
 from .exceptions import RateLimitError, RoundNotFoundError
@@ -12,7 +11,7 @@ class APIFetch:
         base_url: str = "https://api.paradisestation.org/stats",
         max_connections: int = 10,
     ) -> None:
-        """REST adapter for connection pooling
+        """REST adapter for connection pooling. Uses ThreadPoolExecutor for concurrent requests.
 
         Args:
             base_url (str, optional): Endpoint to query, should not need to change from default. Defaults to "https://api.paradisestation.org/stats".
@@ -21,14 +20,14 @@ class APIFetch:
 
         self._log = logging.getLogger(__name__)
         self.base_url = base_url
-        
+
         self.CONNECTIONS = max_connections
         self._session = requests.Session()
 
-        self.blackbox_endpoint = '/blackbox/'
-        self.playercounts_endpoint = '/playercounts/'
-        self.roundlist_endpoint = '/roundlist?offset=' # TODO: this needs to get passed as a param
-        self.metadata_endpoint = '/metadata/'
+        self.blackbox_endpoint = "/blackbox/"
+        self.playercounts_endpoint = "/playercounts/"
+        self.roundlist_endpoint = ("/roundlist?offset=")
+        self.metadata_endpoint = "/metadata/"
 
     def __fetch_roundlist_paged(self, offset_start: int, offset_end: int) -> list:
         """Generator for paginated retrieval of roundlist endpoint. Will return overlapping data."""
@@ -44,7 +43,7 @@ class APIFetch:
             yield result
 
     def fetch_roundlist_to_offset(self, offset_end: int) -> list:
-        """Fetches list of rounds up to a specified offset"""
+        """Fetches list of rounds up to a specified offset."""
         metadata_list = []
 
         for result in self.__fetch_roundlist_paged(0, offset_end):
@@ -52,24 +51,9 @@ class APIFetch:
             metadata_list += result
 
         return metadata_list
-    
-    def fetch_all_metadata(self) -> list:
-        """Hacky debug method to scrape all round metadata"""
-        metadata_list = []
-        
-        result = self._get(self.roundlist_endpoint + str(0))
-        metadata_list += result
-
-        # response.json() != []
-        while result != []:
-            last_id = result[-1]["round_id"]
-            result = self._get(self.roundlist_endpoint + str(last_id))
-            metadata_list += result
-
-        return metadata_list
 
     def fetch_most_recent_round_id(self) -> int:
-        """Gets the most recently completed round from the API"""
+        """Gets the most recently completed round from the API."""
         return self._get("/roundlist?offset=0")[0]["round_id"]
 
     def fetch_round_data_bulk(self, round_id_list: list[int]) -> tuple:
@@ -84,8 +68,7 @@ class APIFetch:
         self._log.info("Starting concurrent get...")
 
         playercount_list, raw_blackbox_list = self.__fetch_endpoints(
-            round_id_list,
-            [self.playercounts_endpoint, self.blackbox_endpoint]
+            round_id_list, [self.playercounts_endpoint, self.blackbox_endpoint]
         )
 
         self._log.info(
@@ -104,7 +87,7 @@ class APIFetch:
             endpoint_list (list[str]): list of endpoint strings. ex: `['/abc/, '/def/']`
 
         Returns:
-            list[list]: list of responses in the order provided in `endpoint_list`. 
+            list[list]: list of responses in the order provided in `endpoint_list`.
         """
 
         # build a list of endpoints/id from each base endpoint
@@ -113,8 +96,8 @@ class APIFetch:
             for endpoint in endpoint_list
         ]
 
-        # iteratively map the iterable of iterables
-        # this is such a bad idea in both conception and execution
+        # map our Session's get onto the iterable of endpoints for each iterable in the full list
+        # query order is preserved with list() 
         with ThreadPoolExecutor(max_workers=self.CONNECTIONS) as pool:
             responses = [
                 list(pool.map(self._get, endpoint_iter))
@@ -145,7 +128,7 @@ class APIFetch:
 
         try:
             response.raise_for_status()
-        # TODO: PLEASE!!!!! learn how exceptions work!!!
+
         except requests.exceptions.HTTPError as e:
             if response.status_code == 429:
                 self._log.exception("Caught rate limit exception:", e, exc_info=1)
@@ -163,7 +146,6 @@ class APIFetch:
             self._log.exception("Error in decoding JSON response:", e, exc_info=1)
             data_json = None
 
-        # TODO: clean this formatting up it's gross and ugly
         self._log.info(
             f"Successful GET/deserialize of endpoint\t{endpoint}\t{response.elapsed.total_seconds()} sec\tratelimit remaining: {int(response.headers['X-Rate-Limit-Remaining'])}"
         )

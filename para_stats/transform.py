@@ -4,12 +4,11 @@ import json
 
 class TransformData:
     def __init__(self) -> None:
-        # this whole situation is fucked
         self._log = logging.getLogger(__name__)
 
     def clean_blackbox_response(self, blackbox_response: list) -> dict:
         """
-        Takes a raw blackbox response and cleans it up for insertion into DB. Returns a DICTIONARY!
+        Takes a raw blackbox response and cleans it up for insertion into DB. Returns a dictionary.
 
         Output format:
         ```
@@ -33,7 +32,7 @@ class TransformData:
                 "key_name": "admin_secrets_fun_used",
                 "key_type": "tally",
                 "version": 1,
-                "raw_data": # this is a string
+                "raw_data": # this is a serialized JSON string
                 "{
                     "data":
                     {
@@ -77,9 +76,7 @@ class TransformData:
                     # turn the list indices into... an actual list
                     data = list(data.values())
                 else:
-                    self._log.critical(
-                        f"Handled bad associative list with body {entry}"
-                    )
+                    self._log.critical(f"Handled bad associative_list key type with body {entry}")
                     data = None
 
             if entry["key_name"] == "RND Production list":
@@ -98,7 +95,6 @@ class TransformData:
     ) -> list:
         cleaned_blackbox_list = []
 
-        # this is much slower than the list comprehension but it needs to be baby proofed
         for raw_response in raw_blackbox_list:
             cleaned_response = self.clean_blackbox_response(raw_response)
             cleaned_blackbox_list.append(cleaned_response)
@@ -107,8 +103,6 @@ class TransformData:
             metadata["playercounts"] = playercount_list[idx]
             metadata["stats"] = cleaned_blackbox_list[idx]
 
-        self._log.info(
-            f"Roundlist collected successfuly with length {len(round_metadata_list)}"
-        )
+        self._log.info(f"Roundlist collected successfuly with length {len(round_metadata_list)}")
 
         return round_metadata_list
